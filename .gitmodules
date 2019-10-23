@@ -1,0 +1,6 @@
+[submodule "gentle"]
+	path = gentle
+	url = https://github.com/shenmishajing/gentle.git
+[submodule "p2fa_vislab"]
+	path = p2fa_vislab
+	url = https://github.com/shenmishajing/p2fa_vislab.git
