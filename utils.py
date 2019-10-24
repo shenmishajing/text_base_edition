@@ -1,9 +1,9 @@
 import os
 import logging
 import time
+import traceback
 from config import Config as cfg
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from gentle.gentle.transcriber import do_transcription
 
 
 class Log:
@@ -16,21 +16,36 @@ class Log:
     if not os.path.exists(cfg.log_path[:last_slash]):
         os.makedirs(cfg.log_path[:last_slash])
     fh = logging.FileHandler(cfg.log_path)
-    fh.setLevel(logging.INFO)  # 输出到file的log等级的开关
+    fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
 
     # 第三步，再创建一个handler，用于输出到控制台
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)  # 输出到console的log等级的开关
 
     # 第四步，定义handler的输出格式
-    fh_formatter = logging.Formatter("%(message)s")
+    fh_formatter = logging.Formatter("%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s")
     fh.setFormatter(fh_formatter)
-    ch_formatter = logging.Formatter("%(asctime)s : %(message)s")
+    ch_formatter = logging.Formatter("%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s")
     ch.setFormatter(ch_formatter)
 
     # 第五步，将logger添加到handler里面
     logger.addHandler(fh)
     logger.addHandler(ch)
+
+
+def log_process(process_func):
+    def log_process_func(logger, **kwargs):
+        start = time.time()
+        logger.debug('start process ' + kwargs['source_path'])
+        try:
+            process_func(**kwargs)
+        except Exception:
+            logger.error(traceback.format_exc())
+        logger.debug('{} finished in {:.2f}s'.format(kwargs['source_path'], time.time() - start))
+        with open(cfg.record_path, 'a') as log_file:
+            log_file.write(kwargs['source_path'] + '\n')
+
+    return log_process_func
 
 
 def traverser(file_process_func):
@@ -88,12 +103,3 @@ def extra_path(**kwargs):
                     except FileExistsError:
                         pass
     return source_file, file_name, kwargs
-
-
-def prepare_and_do_transcription(logger, **kwargs):
-    start = time.time()
-    logger.debug('start process ' + kwargs['source_path'])
-    source_file, file_name, kwargs = extra_path(**kwargs)
-    words = do_transcription(kwargs['source_path'] + source_file, kwargs['wav_path'] + file_name + '.wav',
-                             kwargs['transcription_and_phone_path'] + file_name + '.json')
-    return start, source_file, file_name, kwargs, words

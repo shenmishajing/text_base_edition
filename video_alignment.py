@@ -1,4 +1,3 @@
-import time
 import os
 import subprocess
 import cv2
@@ -6,13 +5,19 @@ import math
 import utils
 from config import Config as cfg
 
+from gentle.gentle.transcriber import do_transcription
+
 
 @utils.traverser
-def do_video_alignment(logger, **kwargs):
-    start, source_file, file_name, kwargs, words = utils.prepare_and_do_transcription(logger, **kwargs)
+@utils.log_process
+def do_video_alignment(**kwargs):
+    source_file, file_name, kwargs = utils.extra_path(**kwargs)
+    words = do_transcription(kwargs['source_path'] + source_file, kwargs['wav_path'] + file_name + '.wav',
+                             kwargs['transcription_and_phone_path'] + file_name + '.json')
     with open(kwargs['transcription_path'] + file_name + '.txt', 'w') as transcription_file:
         for item in words:
-            transcription_file.write(item.word + ' ')
+            if not item.word.startswith('<'):
+                transcription_file.write(item.word + ' ')
             if not os.path.exists(kwargs['img_path'] + file_name):
                 try:
                     os.makedirs(kwargs['img_path'] + file_name)
@@ -30,8 +35,6 @@ def do_video_alignment(logger, **kwargs):
                     item.end) + ' -accurate_seek -i ' + kwargs['source_path'] + source_file + ' -c copy ' + kwargs[
                               'video_path'] + file_name + '_cut.mp4'
                 subprocess.call(command, shell = True)
-    logger.debug('{} finished in {:.2f}s'.format(kwargs['source_path'] + source_file, time.time() - start))
-    logger.info(kwargs['source_path'] + source_file)
 
 
 def main():
